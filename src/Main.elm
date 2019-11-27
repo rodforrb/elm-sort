@@ -40,7 +40,13 @@ view model =
             , text (String.fromFloat model.size) |> fixedwidth |> size 10 |> filled black
                 |> move ((model.adjLeft + (model.adjRight-model.adjLeft)*(model.size/(model.maxSize-model.minSize))) , -40)
             ]
-        , drawBars model.array 
+        , drawBars model.array
+        , rect 60 40 |> filled green |> move (180, -100) |> notifyTap Step
+        , group
+            [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -100)
+            , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -120)
+            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -140)
+            ]
         ]
 
 drawBars nums =
@@ -58,6 +64,7 @@ bars n nums list =
 
 type Msg m
     = Tick Float GetKeyState
+    | Step
     | SizeIncr
     | SizeDecr
     | MouseUp
@@ -129,29 +136,30 @@ update msg model =
         Notif notif ->
             { model | notify = notif }
         
-        -- Next ->
-        --     { model
-        --         | array =
-                    
-        --         }
+        Step ->
+            { model
+                | array =
+                    mergeSort model.array   
+                }
 
--- mergeSort list =
---     case list of
---         [] -> []
---         [_] -> list
---         h::t ->
---             (merge
---                 (mergeSort (partition (\x -> x < ((length list)/2))))
---             )
+mergeSort list =
+    case list of
+        [] -> []
+        [_] -> list
+        h::t ->
+            (merge
+                (mergeSort (List.take ((List.length list)//2) list))
+                (mergeSort (List.drop ((List.length list)//2) list))
+            )
 
 merge list1 list2 =
     case list1 of
         [] -> list2
         h1::t1 ->
             case list2 of
-                [] -> []
+                [] -> list1
                 h2::t2 ->
                     if h1 < h2 then
-                        h1 :: merge t2 list2
+                        h1 :: merge t1 list2
                     else    
                         h2 :: merge list1 t2
