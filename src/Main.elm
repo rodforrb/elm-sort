@@ -24,7 +24,6 @@ init =
     , notify = NotifyTap
     , array = array20 -- random unsorted list
     , moved = array20 -- array of moved values, 0 otherwise, populated by draw function
-    -- , array = [6, 5, 4, 2, 8, 1, 3, 7]
     , steps = 3 -- start at the first actual merge
     }
 
@@ -33,11 +32,6 @@ array20 = [3, 8, 1, 5, 2, 0, 4, 7, 2, 5, 3, 8, 6, 1, 0, 6, 3, 8, 5, 3] -- random
 view model = 
     collage 600 400 <|
         [ graphPaperCustom 10 1 (rgb 255 137 5) |> makeTransparent 0.1
-        , group
-            [
-        --, triangle 10 |> filled (rgb 100 0 100) |> notifyTap SizePlus |> move ( 0, -5 ) |> notifyMouseDown (ButtonDown SizePlus) |> notifyMouseUp (ButtonDown None)
-        --, triangle 10 |> filled (rgb 100 0 100) |> rotate (degrees 180) |> notifyTap SizeMinus |> move ( -110, -5 ) |> notifyMouseDown (ButtonDown SizeMinus) |> notifyMouseUp (ButtonDown None)
-            ]
         , group
             [ text ("More") |> fixedwidth |> size 10 |> filled black |> move (model.adjRight, -50)
             , text ("Fewer") |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -50)
@@ -107,7 +101,6 @@ type Notifications
     | NotifyTouchMoveAt
  
 -- given a message and model, return updated model
-
 update msg model =
     case msg of
         Tick t _ -> 
@@ -158,17 +151,6 @@ update msg model =
                 , steps = model.steps+1
             }
 
--- recursive merge sort given a list
-mergeSort list =
-    case list of
-        [] -> []
-        [_] -> list
-        h::t ->
-            (merge
-                (mergeSort (List.take ((List.length list)//2) list))
-                (mergeSort (List.drop ((List.length list)//2) list))
-            )
-
 -- merge sort helper for merging lists back together
 merge list1 list2 =
     case list1 of
@@ -212,7 +194,8 @@ stepMerge list1 list2 n =
                         else    
                             h2 :: merge list1 t2
 
--- recursive merge sort for given number of steps
+-- stepMergeSort for highlighting active merging segments
+-- incidentally this is achieved by removing the active segment
 drawMergeSort list n =
     case list of
         [] -> []
@@ -224,7 +207,8 @@ drawMergeSort list n =
                 (n-(List.length list))
             )
 
--- step limited merge sort helper for merging lists back together
+-- step limited merge sort helper
+-- if active (newest) merge, empties its contents so it is not drawn (showing highlight behind it)
 drawMerge list1 list2 n =
     -- don't highlight elements we aren't at yet
     if n <= 0 then
