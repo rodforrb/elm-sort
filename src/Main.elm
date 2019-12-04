@@ -144,11 +144,13 @@ update msg model =
         
         Step ->
             { model
-                | array =
-                    stepMergeSort model.array model.steps
-                , moved =
-                    drawMergeSort model.array model.steps
-                , steps = model.steps+1
+                | moved =
+                    insertionSort [] model.array model.steps
+                -- | array =
+                --     stepMergeSort model.array model.steps
+                -- , moved =
+                --     drawMergeSort model.array model.steps
+                -- , steps = model.steps+1
             }
 
 -- merge sort helper for merging lists back together
@@ -232,9 +234,41 @@ drawMerge list1 list2 n =
                         else    
                             h2 :: merge list1 t2
 
+-- insertion sort for given number of steps
+insertionSort sorted unsorted n =
+    case unsorted of
+        [] -> sorted
+        h::t ->
+            insertionSort (insert sorted h) t n
+
+
+
+-- fake insertion sort reverses the list and passes it to the insert function
+-- this is because list deconstruction cam only take the front element off the list
+insert list num =
+    case list of
+        [] -> [num]
+        h::t ->
+            List.reverse (insert2 (List.reverse list) num)
+
+insert2 list num =
+    case list of
+        [] -> [num]
+        h::t ->
+            if num < h then
+                h :: (insert2 t num)
+            else
+                num :: list
+
+
+-- returns same size list but without bars
 -- -10 sets bars to be unseen
+-- don't use this before sorting
 hide list =
     case list of
         [] -> []
         h::t ->
             -10 :: hide t
+        
+
+
