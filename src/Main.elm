@@ -4,6 +4,7 @@ import Array exposing (..)
 import GraphicSVG exposing (..)
 import GraphicSVG.EllieApp exposing (..)
 import List
+import Random
 
 main =
     gameApp Tick
@@ -19,15 +20,22 @@ init =
     , maxSize = 40
     , time = 0
     , currentButton = None
-    , adjLeft = -180
+    , adjLeft = -220
     , adjRight = 160
     , notify = NotifyTap
-    , array = array20 -- random unsorted list
-    , moved = array20 -- array of moved values, 0 otherwise, populated by draw function
-    , steps = 3 -- start at the first actual merge
+    , array = array32 -- random unsorted list
+    , moved = array32 -- array of moved values, 0 otherwise, populated by draw function
+    , steps = 1 -- start at the first actual merge
+    , sortType = MergeSort
     }
 
-array20 = [3, 8, 1, 5, 2, 0, 4, 7, 2, 5, 3, 8, 6, 1, 0, 6, 3, 8, 5, 3] -- random unsorted list
+-- 'random array' which avoids problems of pure programming language
+array32 = [ 8, 3, 8, 1, 5, 2, 0, 4, 7, 11
+          , 2, 5, 3, 8, 6, 1, 12, 0, 6, 7
+          , 3, 8, 5, 3, 10, 4, 8, 2, 0, 6
+          , 10, 7
+          ]
+
 
 view model = 
     collage 600 400 <|
@@ -38,13 +46,22 @@ view model =
             , text (String.fromFloat model.size) |> fixedwidth |> size 10 |> filled black
                 |> move ((model.adjLeft + (model.adjRight-model.adjLeft)*(model.size/(model.maxSize-model.minSize))) , -40)
             ]
-        , drawBars model.array green
-        , drawBars model.moved blue
+        , drawBars model.array green -- full array, bottom layer
+        , drawBars model.moved blue -- same array with 'active' elements removed. top layer/normal colour
         , rect 60 40 |> filled green |> move (180, -100) |> notifyTap Step
         , group
-            [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -100)
-            , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -120)
-            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -140)
+            [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -100) |> notifyTap (SetSort MergeSort)
+            , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -120) |> notifyTap (SetSort InsertionSort)
+            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -140) |> notifyTap (SetSort QuickSort)
+            ]
+        , group
+            [  let y =
+                    case model.sortType of
+                        MergeSort -> -97
+                        InsertionSort -> -117
+                        QuickSort -> -137
+                in
+                    triangle 7 |> filled orange |> move (model.adjLeft-15, y)
             ]
         ]
 
@@ -60,9 +77,9 @@ drawBars nums colour =
 bars n nums list colour =
     case nums of
         h::t ->
-            (rect 10 (10+20*h) |> filled colour |> move ((-160+15*n), -20+10*h)) :: (bars (n+1) t list colour)
+            (rect 10 (10+20*h) |> filled colour |> move ((-220+15*n), -20+10*h)) :: (bars (n+1) t list colour)
         [] -> []     
-  
+
 
 -- messages send signals to the update function
 type Msg m
@@ -71,6 +88,7 @@ type Msg m
     | SizeIncr
     | SizeDecr
     | MouseUp
+    | SetSort Sort
     | ButtonDown ButtonDir
     | Notif Notifications
 
@@ -80,6 +98,11 @@ type ButtonDir
     | SizePlus
     | Next
     | None
+
+type Sort
+    = MergeSort
+    | InsertionSort
+    | QuickSort
 
 -- possible notifactions for interactions
 type Notifications
@@ -130,7 +153,6 @@ update msg model =
                 
                     else
                         model.size
-            
             }
     
         ButtonDown dir ->
@@ -142,16 +164,39 @@ update msg model =
         Notif notif ->
             { model | notify = notif }
         
+        SetSort s ->
+            { model
+                | sortType = s
+                , array = init.array
+                , moved = init.moved
+                , steps = init.steps
+            }
+        
         Step ->
             { model
-                | moved =
-                    insertionSort [] model.array model.steps
-                -- | array =
-                --     stepMergeSort model.array model.steps
-                -- , moved =
-                --     drawMergeSort model.array model.steps
-                -- , steps = model.steps+1
+                -- full array
+                | array =
+                    case model.sortType of
+                        MergeSort -> stepMergeSort model.array (model.steps+2)
+                        InsertionSort -> 
+                            -- only updates every second time
+                            if (remainderBy 2 model.steps) == 0 then model.array
+                            else insertionSort [] init.array (model.steps//2)
+                        QuickSort -> model.array
+                -- same array with 'active' elements zeroed out
+                , moved =
+                    case model.sortType of
+                        MergeSort -> drawMergeSort model.array (model.steps+2)
+                        InsertionSort -> insertionSort [] init.array (model.steps//2)
+                            -- if (remainderBy 2 model.steps) == 1 then
+                            --     drawInsertionSort1 [] init.array (model.steps//2)
+                            -- else 
+                            --     drawInsertionSort2 [] init.array (model.steps//2)
+                        QuickSort -> model.array
+                -- increment step counter 
+                , steps = model.steps+1
             }
+
 
 -- merge sort helper for merging lists back together
 merge list1 list2 =
@@ -239,26 +284,68 @@ insertionSort sorted unsorted n =
     case unsorted of
         [] -> sorted
         h::t ->
-            insertionSort (insert sorted h) t n
-
-
+            insertionSort (insert sorted h (n)) t (n-1)
 
 -- fake insertion sort reverses the list and passes it to the insert function
 -- this is because list deconstruction cam only take the front element off the list
-insert list num =
-    case list of
-        [] -> [num]
-        h::t ->
-            List.reverse (insert2 (List.reverse list) num)
+insert list num n =
+    List.reverse (insert2 (List.reverse list) num n)
 
-insert2 list num =
+insert2 list num n =
+    if n <= 0 then num :: list else
     case list of
         [] -> [num]
         h::t ->
             if num < h then
-                h :: (insert2 t num)
+                h :: (insert2 t num (n))
             else
                 num :: list
+
+
+-- insertion sort for given number of steps
+-- zeroes out active elements
+drawInsertionSort1 sorted unsorted n =
+    case unsorted of
+        [] -> sorted
+        h::t ->
+            drawInsertionSort1 (drawInsert sorted h (n)) t (n-1)
+
+
+-- insertion sort for given number of steps
+-- zeroes out active elements
+drawInsertionSort2 sorted unsorted n =
+    case unsorted of
+        [] -> sorted
+        h::t ->
+            if n == 1 then sorted ++ (-10 :: t) else
+            drawInsertionSort2 (drawInsert sorted h (n)) t (n-1)
+
+
+-- fake insertion sort reverses the list and passes it to the insert function
+-- this is because list deconstruction cam only take the front element off the list
+drawInsert list num n =
+    List.reverse (drawInsert2 (List.reverse list) num n)
+
+drawInsert2 list num n =
+    if n <= 0 then -10 :: list else
+    -- before moving
+    if (remainderBy 2 n) == 1 then
+        case list of
+            [] -> [-10]
+            h::t ->
+                if num < h then
+                    h :: (drawInsert2 t num (n))
+                else
+                    -10 :: list
+    -- after moving
+    else
+        case list of
+            [] -> [num]
+            h::t ->
+                if num < h then
+                    h :: (drawInsert2 t num (n))
+                else
+                    num :: list
 
 
 -- returns same size list but without bars
