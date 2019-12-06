@@ -15,9 +15,9 @@ main =
         }
 
 init = 
-    { size = 20
-    , minSize = 5
-    , maxSize = 40
+    { size = 32
+    , minSize = 4
+    , maxSize = 32
     , time = 0
     , currentButton = None
     , adjLeft = -220
@@ -25,34 +25,40 @@ init =
     , notify = NotifyTap
     , array = array32 -- random unsorted list
     , moved = array32 -- array of moved values, 0 otherwise, populated by draw function
-    , steps = 1 -- start at the first actual merge
+    , steps = 2
     , sortType = MergeSort
     }
 
 -- 'random array' which avoids problems of pure programming language
-array32 = [ 8, 3, 8, 1, 5, 2, 0, 4, 7, 11
-          , 2, 5, 3, 8, 6, 1, 12, 0, 6, 7
+array32 = [ 10, 8, 2, 1, 5, 2, 0, 4, 7, 5
+          , 2, 5, 3, 8, 6, 1, 10, 0, 6, 7
           , 3, 8, 5, 3, 10, 4, 8, 2, 0, 6
           , 10, 7
           ]
 
+getArray n =
+    let
+        m = (round n)
+    in
+        List.take m array32
 
 view model = 
     collage 600 400 <|
         [ graphPaperCustom 10 1 (rgb 255 137 5) |> makeTransparent 0.1
         , group
-            [ text ("More") |> fixedwidth |> size 10 |> filled black |> move (model.adjRight, -50)
-            , text ("Fewer") |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -50)
+            [ text ("More") |> fixedwidth |> size 10 |> filled black |> move ((model.adjRight+50), -50) |> notifyTap (SizeIncr)
+            , text ("Fewer") |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -50) |> notifyTap (SizeDecr)
             , text (String.fromFloat model.size) |> fixedwidth |> size 10 |> filled black
-                |> move ((model.adjLeft + (model.adjRight-model.adjLeft)*(model.size/(model.maxSize-model.minSize))) , -40)
+                |> move ((model.adjLeft + (model.adjRight-model.adjLeft)*(model.size/(model.maxSize-model.minSize))) , -38)
             ]
         , drawBars model.array green -- full array, bottom layer
         , drawBars model.moved blue -- same array with 'active' elements removed. top layer/normal colour
-        , rect 60 40 |> filled green |> move (180, -100) |> notifyTap Step
+        , rect 60 40 |> filled green |> move (model.adjRight+50, -90) |> notifyTap Step
+        , text "Pick an Algorithm:" |> fixedwidth |> size 14 |> filled black |> move (model.adjLeft, -80)
         , group
-            [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -100) |> notifyTap (SetSort MergeSort)
-            , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -120) |> notifyTap (SetSort InsertionSort)
-            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -140) |> notifyTap (SetSort QuickSort)
+            [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -100) |> notifyTap (SetSort MergeSort)
+            , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -120) |> notifyTap (SetSort InsertionSort)
+            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -140) |> notifyTap (SetSort QuickSort)
             ]
         , group
             [  let y =
@@ -61,7 +67,7 @@ view model =
                         InsertionSort -> -117
                         QuickSort -> -137
                 in
-                    triangle 7 |> filled orange |> move (model.adjLeft-15, y)
+                    triangle 7 |> filled orange |> move (model.adjLeft+5, y)
             ]
         ]
 
@@ -136,23 +142,27 @@ update msg model =
                 }
 
         SizeDecr ->
+            let decr = if model.size > model.minSize then (model.size-1) else model.size
+            in
             { model
                 | size =
-                    if model.size > model.minSize then
-                        model.size - 1
-                
-                    else
-                        model.size
+                    decr
+                , array =
+                    (getArray decr)
+                , moved =
+                    (getArray decr)
             }
 
         SizeIncr ->
+            let incr = if model.size < model.maxSize then (model.size+1) else model.size
+            in
             { model
                 | size =
-                    if model.size < model.maxSize then
-                        model.size + 1
-                
-                    else
-                        model.size
+                    incr
+                , array =
+                    (getArray incr)
+                , moved =
+                    (getArray incr)
             }
     
         ButtonDown dir ->
@@ -167,8 +177,8 @@ update msg model =
         SetSort s ->
             { model
                 | sortType = s
-                , array = init.array
-                , moved = init.moved
+                , array = getArray model.size
+                , moved = getArray model.size
                 , steps = init.steps
             }
         
@@ -177,21 +187,22 @@ update msg model =
                 -- full array
                 | array =
                     case model.sortType of
-                        MergeSort -> stepMergeSort model.array (model.steps+2)
+                        MergeSort -> stepMergeSort model.array (model.steps+1)
                         InsertionSort -> 
                             -- only updates every second time
-                            if (remainderBy 2 model.steps) == 0 then model.array
-                            else insertionSort [] init.array (model.steps//2)
+                            insertionSort [] (getArray model.size) ((model.steps-1)//2) 
                         QuickSort -> model.array
                 -- same array with 'active' elements zeroed out
                 , moved =
                     case model.sortType of
-                        MergeSort -> drawMergeSort model.array (model.steps+2)
-                        InsertionSort -> insertionSort [] init.array (model.steps//2)
-                            -- if (remainderBy 2 model.steps) == 1 then
-                            --     drawInsertionSort1 [] init.array (model.steps//2)
-                            -- else 
-                            --     drawInsertionSort2 [] init.array (model.steps//2)
+                        MergeSort -> drawMergeSort model.array (model.steps+1)
+                        InsertionSort ->
+                        
+                            if (remainderBy 2 model.steps) == 0 then
+                                drawInsertionSort1 [] (getArray model.size) ((model.steps+1)//2)
+                            else 
+                                drawInsertionSort2 [] (getArray model.size) ((model.steps)//2)
+
                         QuickSort -> model.array
                 -- increment step counter 
                 , steps = model.steps+1
@@ -308,7 +319,11 @@ drawInsertionSort1 sorted unsorted n =
     case unsorted of
         [] -> sorted
         h::t ->
-            drawInsertionSort1 (drawInsert sorted h (n)) t (n-1)
+            if n == 1 then
+                -- stick the list back together
+                sorted ++ (-10 :: t)
+            else
+                drawInsertionSort1 (drawInsert sorted h (n)) t (n-1)
 
 
 -- insertion sort for given number of steps
@@ -317,7 +332,6 @@ drawInsertionSort2 sorted unsorted n =
     case unsorted of
         [] -> sorted
         h::t ->
-            if n == 1 then sorted ++ (-10 :: t) else
             drawInsertionSort2 (drawInsert sorted h (n)) t (n-1)
 
 
@@ -327,26 +341,18 @@ drawInsert list num n =
     List.reverse (drawInsert2 (List.reverse list) num n)
 
 drawInsert2 list num n =
-    if n <= 0 then -10 :: list else
-    -- before moving
-    if (remainderBy 2 n) == 1 then
-        case list of
-            [] -> [-10]
-            h::t ->
-                if num < h then
-                    h :: (drawInsert2 t num (n))
-                else
+    if n <= 0 then num :: list else
+    case list of
+        [] -> 
+            if n == 1 then [-10] else [num]
+        h::t ->
+            if num < h then
+                h :: (drawInsert2 t num (n))
+            else
+                if n == 1 then
                     -10 :: list
-    -- after moving
-    else
-        case list of
-            [] -> [num]
-            h::t ->
-                if num < h then
-                    h :: (drawInsert2 t num (n))
                 else
                     num :: list
-
 
 -- returns same size list but without bars
 -- -10 sets bars to be unseen
