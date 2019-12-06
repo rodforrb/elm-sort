@@ -1,5 +1,8 @@
 module Main exposing (main)
 
+-- CS 4HC3 Group 37
+-- Sorting Algorithms in Elm
+
 import Array exposing (..)
 import GraphicSVG exposing (..)
 import GraphicSVG.EllieApp exposing (..)
@@ -14,8 +17,9 @@ main =
         , update = update
         }
 
+-- initial model
 init = 
-    { size = 32
+    { size = 18
     , minSize = 4
     , maxSize = 32
     , time = 0
@@ -23,19 +27,20 @@ init =
     , adjLeft = -220
     , adjRight = 160
     , notify = NotifyTap
-    , array = array32 -- random unsorted list
-    , moved = array32 -- array of moved values, 0 otherwise, populated by draw function
+    , array = getArray 18 -- random unsorted list
+    , moved = getArray 18 -- array of moved values, 0 otherwise, populated by draw function
     , steps = 2
     , sortType = MergeSort
     }
 
 -- 'random array' which avoids problems of pure programming language
-array32 = [ 10, 8, 2, 1, 5, 2, 0, 4, 7, 5
-          , 2, 5, 3, 8, 6, 1, 10, 0, 6, 7
-          , 3, 8, 5, 3, 10, 4, 8, 2, 0, 6
-          , 10, 7
+array32 = [ 8, 6, 2, 1, 5, 2, 0, 4, 7, 5
+          , 2, 5, 3, 8, 6, 1, 8, 0, 6, 7
+          , 3, 8, 5, 3, 5, 4, 8, 2, 0, 6
+          , 4, 7
           ]
 
+-- return a 'random' list of size n
 getArray n =
     let
         m = (round n)
@@ -44,23 +49,29 @@ getArray n =
 
 view model = 
     collage 600 400 <|
-        [ graphPaperCustom 10 1 (rgb 255 137 5) |> makeTransparent 0.1
+        [ graphPaperCustom 10 1 (blue) |> makeTransparent 0.1
         , group
-            [ text ("More") |> fixedwidth |> size 10 |> filled black |> move ((model.adjRight+50), -50) |> notifyTap (SizeIncr)
-            , text ("Fewer") |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -50) |> notifyTap (SizeDecr)
+            [ text ("More bars") |> fixedwidth |> size 10 |> filled black |> move ((model.adjRight+20), -50) |> notifyTap (SizeIncr)
+            , text ("Fewer bars") |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft, -50) |> notifyTap (SizeDecr)
             , text (String.fromFloat model.size) |> fixedwidth |> size 10 |> filled black
                 |> move ((model.adjLeft + (model.adjRight-model.adjLeft)*(model.size/(model.maxSize-model.minSize))) , -38)
             ]
         , drawBars model.array green -- full array, bottom layer
         , drawBars model.moved blue -- same array with 'active' elements removed. top layer/normal colour
-        , rect 60 40 |> filled green |> move (model.adjRight+50, -90) |> notifyTap Step
+        , text "Sorting Algorithms"|> fixedwidth |> size 22 |> filled black |> move ((model.adjLeft), 170)
+        , group
+            [ rect 60 30 |> filled green |> move (model.adjRight+50, -75) |> notifyTap Step
+            , text "Next" |> fixedwidth |> size 18 |> filled black |> move (model.adjRight+28, -82) |> notifyTap Step
+            ]
+        , text ("Step: " ++ String.fromInt (model.steps-1))|> fixedwidth |> size 12 |> filled black |> move (model.adjRight-40, -80)
         , text "Pick an Algorithm:" |> fixedwidth |> size 14 |> filled black |> move (model.adjLeft, -80)
         , group
             [ text "Merge Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -100) |> notifyTap (SetSort MergeSort)
             , text "Insertion Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -120) |> notifyTap (SetSort InsertionSort)
-            , text "Quick Sort" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -140) |> notifyTap (SetSort QuickSort)
+            , text "Quick Sort (not implemented)" |> fixedwidth |> size 10 |> filled black |> move (model.adjLeft+20, -140) |> notifyTap (SetSort QuickSort)
             ]
         , group
+            -- indicator triangle
             [  let y =
                     case model.sortType of
                         MergeSort -> -97
@@ -69,7 +80,33 @@ view model =
                 in
                     triangle 7 |> filled orange |> move (model.adjLeft+5, y)
             ]
+        , text "Description: " |> fixedwidth |> size 14 |> filled black |> move (0, -100)
+        , case model.sortType of
+            MergeSort -> mergeText
+            InsertionSort -> insertText
+            QuickSort -> quickText
         ]
+
+
+mergeText = group
+    [ text "Split the list into two halves recursively," |> fixedwidth |> size 10 |> filled black |> move (0, -120)
+    , text "splicing halves back together while putting" |> fixedwidth |> size 10 |> filled black |> move (0, -140)
+    , text "elements in order." |> fixedwidth |> size 10 |> filled black |> move (0, -160)
+    ]
+
+insertText = group
+    [ text "Traverse the list toward the right," |> fixedwidth |> size 10 |> filled black |> move (0, -120)
+    , text "inserting each element into the correct" |> fixedwidth |> size 10 |> filled black |> move (0, -140)
+    , text "position in the growing sorted portion" |> fixedwidth |> size 10 |> filled black |> move (0, -160)
+    , text "of the list on the left." |> fixedwidth |> size 10 |> filled black |> move (0, -180)
+    ]
+
+quickText = group
+    [ text "Take the middle element of the list" |> fixedwidth |> size 10 |> filled black |> move (0, -120)
+    , text "and recursively sort each half by" |> fixedwidth |> size 10 |> filled black |> move (0, -140)
+    , text "moving each element to the correct" |> fixedwidth |> size 10 |> filled black |> move (0, -160)
+    , text "side of the pivot element." |> fixedwidth |> size 10 |> filled black |> move (0, -180)
+    ]
 
 -- helper function to draw the bars given an array of numbers
 -- calls recursive looping function with starting values
@@ -105,6 +142,7 @@ type ButtonDir
     | Next
     | None
 
+-- types of sorting algorithm
 type Sort
     = MergeSort
     | InsertionSort
@@ -141,6 +179,7 @@ update msg model =
                     , size = model.size
                 }
 
+        -- decrease list size, reset values
         SizeDecr ->
             let decr = if model.size > model.minSize then (model.size-1) else model.size
             in
@@ -151,8 +190,11 @@ update msg model =
                     (getArray decr)
                 , moved =
                     (getArray decr)
+                , steps =
+                    init.steps
             }
 
+        -- increase list size, reset values
         SizeIncr ->
             let incr = if model.size < model.maxSize then (model.size+1) else model.size
             in
@@ -163,6 +205,8 @@ update msg model =
                     (getArray incr)
                 , moved =
                     (getArray incr)
+                , steps =
+                    init.steps
             }
     
         ButtonDown dir ->
@@ -174,6 +218,7 @@ update msg model =
         Notif notif ->
             { model | notify = notif }
         
+        -- set sorting algorithm type to s, reset values
         SetSort s ->
             { model
                 | sortType = s
@@ -182,6 +227,7 @@ update msg model =
                 , steps = init.steps
             }
         
+        -- green "Next" button
         Step ->
             { model
                 -- full array
@@ -190,14 +236,17 @@ update msg model =
                         MergeSort -> stepMergeSort model.array (model.steps+1)
                         InsertionSort -> 
                             -- only updates every second time
+                            -- the insertion sort alternates between selecting the next
+                            -- element and inserting it
                             insertionSort [] (getArray model.size) ((model.steps-1)//2) 
                         QuickSort -> model.array
-                -- same array with 'active' elements zeroed out
+                -- same array with 'active' elements zeroed out, displayed on top
+                -- this is how 'highlighting' elements green is achieved
                 , moved =
                     case model.sortType of
                         MergeSort -> drawMergeSort model.array (model.steps+1)
                         InsertionSort ->
-                        
+                            -- alternate between selecting next selement and inserting
                             if (remainderBy 2 model.steps) == 0 then
                                 drawInsertionSort1 [] (getArray model.size) ((model.steps+1)//2)
                             else 
@@ -274,9 +323,6 @@ drawMerge list1 list2 n =
     -- hide colour for active merge so the highlight colour is seen
     else if n == 1 then 
         hide (list1 ++ list2)
-    -- -- don't highlight elements we are past
-    -- else if n > 1 then
-    --     hide (list1 ++ list2)
     else
         case list1 of
             [] -> list2
@@ -320,7 +366,7 @@ drawInsertionSort1 sorted unsorted n =
         [] -> sorted
         h::t ->
             if n == 1 then
-                -- stick the list back together
+                -- stick the list back together, select active element
                 sorted ++ (-10 :: t)
             else
                 drawInsertionSort1 (drawInsert sorted h (n)) t (n-1)
@@ -340,6 +386,8 @@ drawInsertionSort2 sorted unsorted n =
 drawInsert list num n =
     List.reverse (drawInsert2 (List.reverse list) num n)
 
+-- inserts num into the correct position in list
+-- if n==1 then the inserted element is selected
 drawInsert2 list num n =
     if n <= 0 then num :: list else
     case list of
